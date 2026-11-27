@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import TablaEnVivo from './components/TablaEnVivo.vue'
 import GaleriaDinamica from './components/GaleriaDinamica.vue'
 import ListaMemoria from './components/ListaMemoria.vue'
@@ -11,11 +11,46 @@ interface RegistroEvento {
   detalle: string
 }
 
+const STORAGE_KEY = 'vue_eventos_telemetria_v1'
+
+const cargarEstado = () => {
+  try {
+    const guardado = localStorage.getItem(STORAGE_KEY)
+    if (guardado) return JSON.parse(guardado)
+  } catch {
+    // Si localStorage está bloqueado o corrupto, usa valores por defecto
+  }
+  return {
+    totalEventos: 0,
+    contadorManual: 0,
+    paso: 1,
+    historial: [] as RegistroEvento[]
+  }
+}
+
+const estadoInicial = cargarEstado()
+
 const pestanaActiva = ref<'tabla' | 'galeria' | 'memoria'>('tabla')
-const totalEventos = ref(0)
-const contadorManual = ref(0)
-const paso = ref(1)
-const historial = ref<RegistroEvento[]>([])
+const totalEventos = ref<number>(estadoInicial.totalEventos)
+const contadorManual = ref<number>(estadoInicial.contadorManual)
+const paso = ref<number>(estadoInicial.paso)
+const historial = ref<RegistroEvento[]>(estadoInicial.historial)
+
+watch(
+  [totalEventos, contadorManual, paso, historial],
+  () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        totalEventos: totalEventos.value,
+        contadorManual: contadorManual.value,
+        paso: paso.value,
+        historial: historial.value
+      })
+    )
+  },
+  { deep: true }
+)
 
 const registrarEvento = (tipo: string, detalle: string) => {
   totalEventos.value++
@@ -42,6 +77,7 @@ const reiniciarTelemetria = () => {
   totalEventos.value = 0
   contadorManual.value = 0
   historial.value = []
+  localStorage.removeItem(STORAGE_KEY)
 }
 </script>
 
